@@ -1,0 +1,37 @@
+{
+  "storage-browser.status.description.loading": "Loading",
+  "storage-browser.status.description.no_data": "§7No Storage Data\nClick to assign a name for this world/server",
+  "storage-browser.status.description.unknown": "§7Unknown Pos\nEither the service failed to find pos for this container\nor this container type is not supported",
+  "storage-browser.status.description.ignored": "§cIgnored\nThis container is ignored\nClick to add this container",
+  "storage-browser.status.description.partial_ignore": "§cPartial Ignored\nThis container is partially ignored\nClick to ignore the whole container",
+  "storage-browser.status.description.partial_added": "§aPartial Added\nThis container is partially added\nClick to add the whole container",
+  "storage-browser.status.description.can_add": "§aCan Add\nThis container can be added to the storage manager\nClick to add this container",
+  "storage-browser.status.description.added": "§aAdded\nThis container is added to the storage manager\nClick to ignore this container",
+  "storage-browser.status.description.open_browser": "§6Click to browse items\nWIP",
+
+  "storage-browser.name-assign.screen-title": "Assign a Name",
+  "storage-browser.name-assign.title1": "Enter a name for this world/server",
+  "storage-browser.name-assign.title2": "the name should be a valid directory name",
+  "storage-browser.name-assign.world-id": "World Identifier: %s",
+  "storage-browser.name-assign.confirm": "Confirm",
+  "storage-browser.name-assign.tooltip.invalid": "Invalid Name\nThe name should be a valid directory name\nIt cannot end with '.' and cannot contain following characters:\n \\ / : * ? \" < > |",
+  "storage-browser.name-assign.tooltip.duplicate": "Duplicate Name\nThe name is already set for another server\nYou can still set it, they'll share the same profile",
+  "storage-browser.name-assign.tooltip.confirm-duplicate": "Duplicate Name\nThe name is already set for another server\nYou can still set it, they'll share the same profile\n\nClick again to confirm",
+  "storage-browser.name-assign.tooltip.valid": "Valid Name\nClick to confirm",
+  "storage-browser.name-assign.text-field.narration": "storage name input",
+
+  "storage-browser.browser.search-bar.tooltip.title": "Prefixes:",
+  "storage-browser.browser.search-bar.tooltip.tooltip": " #Tooltip",
+  "storage-browser.browser.search-bar.tooltip.tag": " $Tag",
+  "storage-browser.browser.search-bar.tooltip.identifier": " *Identifier",
+  "storage-browser.browser.search-bar.tooltip.mod": " @Mod",
+  "storage-browser.browser.search-bar.placeholder": "Search.. not implemented",
+
+  "storage-browser.browser.title": "Storage Browser",
+  "storage-browser.browser.no-item": "No item",
+  "storage-browser.browser.loading": "Loading..",
+  "storage-browser.browser.searching": "Searching..",
+  "storage-browser.browser.no-space": "No Space. Check itemsPosition function",
+  "storage-browser.browser.on-click": "Nearest %s is at: %s (%s)",
+  "storage-browser.browser.on-click.tooltip": "This is the default behavior of clicking action.\nYou can customize it using JsMacros by changing this field:\n§2StorageBrowserAPI$Browser§f.§eonClickItem §f= §2JavaWrapper§f.§emethodToJava§f((§bitem§f, §bbutton§f) => {})"
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "storage-browser",
+  "version": "${version}",
+  "name": "Storage Browser",
+  "description": "",
+  "authors": [],
+  "contact": {
+    "repo": "https://github.com/aMelonRind/StorageBrowser"
+  },
+  "license": "MIT",
+  "icon": "assets/storage-browser/icon.png",
+  "environment": "client",
+  "entrypoints": {
+  },
+  "mixins": [
+    "storage-browser.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "${minecraft_version}"
+  }
+}
