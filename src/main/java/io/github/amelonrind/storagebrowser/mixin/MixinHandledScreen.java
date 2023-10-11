@@ -18,6 +18,7 @@ public abstract class MixinHandledScreen implements IMixinHandledScreen {
 
     @Inject(at = @At("TAIL"), method = "init()V")
     protected void init(CallbackInfo ci) {
+        //noinspection ConstantValue
         if ((Object) this instanceof HandledScreen<?> hs) {
             if (hs instanceof GenericContainerScreen gcs) {
                 addIcon(hs, gcs.getScreenHandler().getRows());

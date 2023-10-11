@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 
+@SuppressWarnings("unused")
 public class Texts {
     public static Text EMPTY = Text.literal("");
 

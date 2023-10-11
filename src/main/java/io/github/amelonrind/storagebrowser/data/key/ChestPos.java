@@ -36,6 +36,7 @@ public class ChestPos {
         str = String.format("%d,%d,%d", x, y, z);
     }
 
+    @SuppressWarnings("unused")
     public BlockPos toBlockPos() {
         return new BlockPos(x, y, z);
     }

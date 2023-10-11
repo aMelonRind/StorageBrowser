@@ -4,7 +4,6 @@ import io.github.amelonrind.storagebrowser.StorageBrowser;
 import io.github.amelonrind.storagebrowser.data.DataManager;
 import io.github.amelonrind.storagebrowser.data.ItemData;
 import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Comparator;
@@ -55,16 +54,6 @@ public class StorageBrowserAPI {
             if (sortMethod == null) return null;
             BiFunction<ItemData, ItemData, Double> finalSortMethod = sortMethod;
             return (a, b) -> (int) Math.signum(finalSortMethod.apply(a, b));
-        }
-
-        public static int defaultSortMethod(@NotNull ItemData a, @NotNull ItemData b) {
-            int res = a.compareFavorite(b);
-            if (res != 0) return res;
-            res = a.compareCount(b);
-            if (res != 0) return -res;
-            res = a.compareName(b);
-            if (res != 0) return res;
-            return a.compareDistance(b);
         }
 
         public static PositionAndSize getItemsPosition(Size size) {

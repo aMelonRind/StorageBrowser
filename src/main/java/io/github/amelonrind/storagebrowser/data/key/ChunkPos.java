@@ -12,6 +12,7 @@ public class ChunkPos {
     public final int z;
     private final String str;
 
+    @SuppressWarnings("unused")
     @Contract("_ -> new")
     public static @NotNull ChunkPos fromBlockPos(@NotNull BlockPos pos) {
         return new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4);

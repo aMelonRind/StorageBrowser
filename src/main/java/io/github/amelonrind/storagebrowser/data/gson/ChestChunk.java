@@ -61,10 +61,9 @@ public class ChestChunk implements Iterable<Chest> {
         return ignored.removeIf(s -> pos.toString().equals(s));
     }
 
-    public ChestChunk addChest(@NotNull Chest chest) {
-        if (isIgnored(chest.getPos()) || !chunkPos.contains(chest.getPos())) return this;
+    public void addChest(@NotNull Chest chest) {
+        if (isIgnored(chest.getPos()) || !chunkPos.contains(chest.getPos())) return;
         chests.put(chest.getPos().toString(), chest);
-        return this;
     }
 
     public @Nullable Chest getChest(@NotNull ChestPos pos) {

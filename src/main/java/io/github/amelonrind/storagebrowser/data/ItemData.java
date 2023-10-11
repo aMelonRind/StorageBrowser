@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Set;
 
 @SuppressWarnings("unused")
-public class ItemData {
+public class ItemData implements Comparable<ItemData> {
     private static final Text[] smallCountTexts = new Text[] {
             Text.literal("0"),
             null,
@@ -28,6 +28,7 @@ public class ItemData {
             Text.literal("8"),
             Text.literal("9")
     };
+    @SuppressWarnings("SpellCheckingInspection")
     private static final String units = "KMBTQ";
     public static final Object infoSync = new Object();
     public final StorageBrowseScreen screen;
@@ -243,7 +244,7 @@ public class ItemData {
         }
     }
 
-    public int compareFavorite(@NotNull ItemData other) {
+    public int comparePinned(@NotNull ItemData other) {
         if (isPinned == other.isPinned) return 0;
         return isPinned ? -1 : 1;
     }
@@ -268,6 +269,17 @@ public class ItemData {
         if (!(o instanceof ItemData oi)) return false;
         if (index != -1 && oi.index != -1) return index == oi.index;
         return ItemStack.areEqual(item, oi.item);
+    }
+
+    @Override
+    public int compareTo(@NotNull ItemData o) {
+        int res = comparePinned(o);
+        if (res != 0) return res;
+        res = compareCount(o);
+        if (res != 0) return -res;
+        res = compareName(o);
+        if (res != 0) return res;
+        return compareDistance(o);
     }
 
 }

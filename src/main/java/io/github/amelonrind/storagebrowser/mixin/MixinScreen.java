@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 @Mixin(Screen.class)
 public interface MixinScreen {
 
+    @SuppressWarnings("UnusedReturnValue")
     @Invoker <T extends Element & Drawable & Selectable> T callAddDrawableChild(T drawableElement);
 
 }

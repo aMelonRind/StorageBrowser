@@ -198,7 +198,7 @@ public class StorageBrowseScreen extends Screen {
         }
         if (StorageBrowserAPI.Browser.sortMethod == null) {
             synchronized (ItemData.infoSync) {
-                displayedItems.sort(StorageBrowserAPI.Browser::defaultSortMethod);
+                displayedItems.sort(ItemData::compareTo);
             }
         }
         if (sortReversed) Collections.reverse(displayedItems);
@@ -498,7 +498,6 @@ public class StorageBrowseScreen extends Screen {
 
     static class ItemsLoader {
         private final StorageBrowseScreen screen;
-        private final DataManager profile;
         private final NbtList nbtItems;
         /** index: index of nbtItems, value: index of screen.loadedItems | -1: null | -2: unpacked shulker */
         private final int[] fastIndex;
@@ -516,7 +515,6 @@ public class StorageBrowseScreen extends Screen {
 
         public ItemsLoader(StorageBrowseScreen screen, DataManager profile, boolean unpackShulker, List<ChunkPos> chunks, Vec3d playerPos) {
             this.screen = screen;
-            this.profile = profile;
             this.nbtItems = profile.getNbtItemList();
             this.unpackShulker = unpackShulker;
             this.path = profile.getCurrentPath();

@@ -15,9 +15,11 @@ import java.util.List;
 public class Chest implements Iterable<Integer> {
     private ChestPos pos;
     @Expose private String type;
+    @SuppressWarnings("UnusedAssignment")
     @Expose private int slots = 0;
     @Expose private int[] items;
     @Expose private int[] counts;
+    @SuppressWarnings("UnusedAssignment")
     @Expose private long time = 0L;
 
     public static Chest fromInventory(DataManager profile, ChestPos pos, String type, @NotNull Inventory inv, int from, int size) {

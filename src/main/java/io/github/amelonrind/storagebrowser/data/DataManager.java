@@ -44,7 +44,7 @@ public class DataManager {
 
     static {
         File root = configRoot.toFile();
-        if (!root.isDirectory()) root.mkdir();
+        if (!root.isDirectory()) if (!root.mkdir()) LOGGER.warn("Failed to create config root");
     }
 
     public static @Nullable String getProfileIndex(String id) {
@@ -55,6 +55,7 @@ public class DataManager {
         profileIndex.set(id, name);
     }
 
+    @SuppressWarnings("unused")
     public static void removeProfileIndex(String id) {
         profileIndex.remove(id);
     }
@@ -132,7 +133,11 @@ public class DataManager {
 
     public static void writeJson(String name, File file, JsonElement json, boolean ugly) {
         addSaveTask(file, () -> {
-            file.getParentFile().mkdirs();
+            File dir = file.getParentFile();
+            if (!dir.isDirectory() && !dir.mkdirs()) {
+                LOGGER.warn("Failed to create directory for file " + file);
+                return;
+            }
             try (FileWriter writer = new FileWriter(file)) {
                 (ugly ? uglyGson : gson).toJson(json, writer);
             } catch (IOException | JsonIOException e) {
@@ -167,6 +172,7 @@ public class DataManager {
 
     public final String profileName;
     public final Settings settings;
+    @SuppressWarnings("FieldCanBeLocal")
     private final Path profileRoot;
     private final Path chestsRoot;
     private final File itemsFile;
@@ -187,7 +193,9 @@ public class DataManager {
         settings = Settings.open(profileName);
         profileRoot = configRoot.resolve("profiles").resolve(profileName);
         chestsRoot = profileRoot.resolve("chests");
-        chestsRoot.toFile().mkdirs();
+        if (!chestsRoot.toFile().isDirectory() && !chestsRoot.toFile().mkdirs()) {
+            LOGGER.warn("Failed to create directory for " + profileName);
+        }
         itemsFile = profileRoot.resolve("items.nbt").toFile();
         NbtList data = null;
         if (itemsFile.isFile()) try {
@@ -197,7 +205,7 @@ public class DataManager {
         } catch (Throwable e) {
             LOGGER.warn("Failed to load items for " + profileName, e);
             backup(itemsFile);
-            itemsFile.delete();
+            if (!itemsFile.delete()) LOGGER.warn("Failed to delete file " + itemsFile);
         }
         NbtCompound empty = new NbtCompound();
         items = data == null ? new NbtList() : data;
@@ -262,7 +270,7 @@ public class DataManager {
         String dmr = mc.world == null ? "null" : escapeIdentifier(mc.world.getRegistryKey().getValue().toString());
         if (idr == null) idr = serverId;
         if (!Objects.equals(serverId, idr) || !Objects.equals(dimension, dmr) || chestChunks.size() > 128) {
-            chestChunks.clear();
+            clearCache();
         }
         currentPath = chestsRoot.resolve(serverId = idr).resolve(dimension = dmr);
         File root = currentPath.toFile();
@@ -299,6 +307,7 @@ public class DataManager {
         return index;
     }
 
+    @SuppressWarnings("unused")
     public ItemStack getItem(int index) {
         if (itemStackCache.containsKey(index)) return itemStackCache.get(index);
         NbtCompound nbt = getNbtItem(index);
@@ -334,6 +343,7 @@ public class DataManager {
         }
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public boolean hasChestChunkData(ChunkPos pos) {
         ChestChunk chunk;
         if ((chunk = chestChunks.get(pos)) != null && !chunk.isEmpty()) return true;
@@ -358,10 +368,6 @@ public class DataManager {
     public @Nullable Chest getChestData(@NotNull ChestPos pos) {
         if (!hasChestChunkData(pos.toChunkPos())) return null;
         return getChestChunk(pos.toChunkPos()).getChest(pos);
-    }
-
-    public void setIgnored(@NotNull ChestPos pos) {
-        setIgnored(pos, true);
     }
 
     public void setIgnored(@NotNull ChestPos pos, boolean ignore) {
@@ -391,6 +397,7 @@ public class DataManager {
                 .filter(c -> c.x >= x1 && c.x <= x2 && c.z >= z1 && c.z <= z2).toList());
     }
 
+    @SuppressWarnings("unused")
     public List<ChunkPos> getAllChunks() {
         return new ArrayList<>(getAllChunksStream().toList());
     }
@@ -502,24 +509,28 @@ public class DataManager {
             return e.isJsonPrimitive() ? e.getAsJsonPrimitive() : null;
         }
 
+        @SuppressWarnings("UnusedReturnValue")
         public boolean set(String key, boolean value) {
             json.addProperty(key, value);
             write();
             return value;
         }
 
+        @SuppressWarnings("UnusedReturnValue")
         public int set(String key, int value) {
             json.addProperty(key, value);
             write();
             return value;
         }
 
+        @SuppressWarnings("UnusedReturnValue")
         public double set(String key, double value) {
             json.addProperty(key, value);
             write();
             return value;
         }
 
+        @SuppressWarnings("UnusedReturnValue")
         public String set(String key, String value) {
             json.addProperty(key, value);
             write();
