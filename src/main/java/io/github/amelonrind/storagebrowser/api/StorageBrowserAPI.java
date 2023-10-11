@@ -58,7 +58,9 @@ public class StorageBrowserAPI {
         }
 
         public static int defaultSortMethod(@NotNull ItemData a, @NotNull ItemData b) {
-            int res = a.compareCount(b);
+            int res = a.compareFavorite(b);
+            if (res != 0) return res;
+            res = a.compareCount(b);
             if (res != 0) return -res;
             res = a.compareName(b);
             if (res != 0) return res;

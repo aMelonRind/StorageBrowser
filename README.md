@@ -5,3 +5,5 @@ WIP
 A minecraft mod that can cache container data and browse items  
 With an api for jsmacros to customize stuff  
 Ported from [my jsmacros script](https://github.com/aMelonRind/JsMacros-scripts/tree/main/src/StorageManager)
+
+this mod is designed for vanilla multiplayer, meaning that it won't load items directly from save file in singleplayer

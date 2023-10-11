@@ -59,7 +59,7 @@ public class Chest implements Iterable<Integer> {
         pos = ChestPos.fromString(chestPos);
         if (pos == null) return false;
         init(pos);
-        return Arrays.stream(items).filter(i -> i >= 0).count() == counts.length;
+        return Arrays.stream(items).filter(i -> i > 0).count() == counts.length;
     }
 
     private Chest init(ChestPos pos) {
@@ -74,18 +74,22 @@ public class Chest implements Iterable<Integer> {
         return pos;
     }
 
+    @SuppressWarnings("unused")
     public int getSlots() {
         return slots;
     }
 
+    @SuppressWarnings("unused")
     public int[] getItems() {
         return items;
     }
 
+    @SuppressWarnings("unused")
     public int[] getCounts() {
         return counts;
     }
 
+    @SuppressWarnings("unused")
     public long getTime() {
         return time;
     }

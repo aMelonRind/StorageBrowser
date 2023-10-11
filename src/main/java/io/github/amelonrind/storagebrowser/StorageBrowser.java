@@ -85,7 +85,6 @@ public class StorageBrowser {
         else if (profile.isIgnored(pos)) situation = Situation.IGNORED;
         else situation = Situation.CAN_ADD;
         if (profile != null) ((IMixinHandledScreen) screen).storagebrowser_setOnClose(() -> {
-//              await Threads.escapeThread();
             if (profile == null) return;
             if (situation == Situation.IGNORED) profile.setIgnored(pos, true);
             if (situation != Situation.ADDED || mc.world.getBlockState(bpos).getBlock() != block) return;
@@ -118,7 +117,6 @@ public class StorageBrowser {
             }
         }
         if (profile != null) ((IMixinHandledScreen) screen).storagebrowser_setOnClose(() -> {
-//            await Threads.escapeThread();
             if (profile == null) return;
             if (situation == Situation.IGNORED) {
                 profile.setIgnored(pos1, true);

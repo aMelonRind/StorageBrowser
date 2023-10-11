@@ -1,7 +1,6 @@
 package io.github.amelonrind.storagebrowser.data.gson;
 
 import com.google.gson.annotations.Expose;
-import io.github.amelonrind.storagebrowser.StorageBrowser;
 import io.github.amelonrind.storagebrowser.data.DataManager;
 import io.github.amelonrind.storagebrowser.data.key.ChestPos;
 import io.github.amelonrind.storagebrowser.data.key.ChunkPos;
@@ -13,6 +12,8 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.util.*;
 
+import static io.github.amelonrind.storagebrowser.StorageBrowser.LOGGER;
+
 public class ChestChunk implements Iterable<Chest> {
     private boolean init = false;
     private File file;
@@ -21,13 +22,12 @@ public class ChestChunk implements Iterable<Chest> {
     @Expose private TreeSet<String> ignored;
 
     public static @Nullable ChestChunk load(@NotNull File file, @NotNull ChunkPos pos) {
-        if (!file.isFile()) return null;
-        try (FileReader reader = new FileReader(file)) {
+        if (file.isFile()) try (FileReader reader = new FileReader(file)) {
             return DataManager.gson.fromJson(reader, ChestChunk.class).init(file, pos);
         } catch (Exception e) {
-            StorageBrowser.LOGGER.warn("Error while loading chunk " + file.getName(), e);
-            return null;
+            LOGGER.warn("Error while loading chunk" + file.getName(), e);
         }
+        return null;
     }
 
     public ChestChunk(File file, ChunkPos pos) {
@@ -82,8 +82,8 @@ public class ChestChunk implements Iterable<Chest> {
         return chunkPos;
     }
 
-    public Set<Integer> getContainedItems() {
-        Set<Integer> res = new TreeSet<>();
+    public TreeSet<Integer> getContainedItems() {
+        TreeSet<Integer> res = new TreeSet<>();
         for (Chest chest : chests.values()) for (int item : chest) res.add(item);
         res.remove(0);
         return res;
@@ -94,15 +94,17 @@ public class ChestChunk implements Iterable<Chest> {
     }
 
     public void write() {
-        if (isEmpty()) {
-            if (file.isFile() && !file.delete()) StorageBrowser.LOGGER.warn("Failed to delete chunk data " + file.getName());
-            return;
-        }
-        try (FileWriter writer = new FileWriter(file)) {
-            writer.write(DataManager.uglyGson.toJson(this, ChestChunk.class));
-        } catch (Exception e) {
-            StorageBrowser.LOGGER.warn("Error while writing chunk " + file.getName(), e);
-        }
+        DataManager.addSaveTask(this, () -> {
+            if (isEmpty()) {
+                if (file.isFile() && !file.delete()) LOGGER.warn("Failed to delete chunk data" + file.getName());
+                return;
+            }
+            try (FileWriter writer = new FileWriter(file)) {
+                DataManager.uglyGson.toJson(this, ChestChunk.class, writer);
+            } catch (Exception e) {
+                LOGGER.warn("Error while writing chunk" + file.getName(), e);
+            }
+        });
     }
 
     @NotNull

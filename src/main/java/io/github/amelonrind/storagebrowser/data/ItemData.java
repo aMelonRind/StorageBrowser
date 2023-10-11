@@ -1,5 +1,6 @@
 package io.github.amelonrind.storagebrowser.data;
 
+import io.github.amelonrind.storagebrowser.screen.StorageBrowseScreen;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
@@ -29,12 +30,14 @@ public class ItemData {
     };
     private static final String units = "KMBTQ";
     public static final Object infoSync = new Object();
+    public final StorageBrowseScreen screen;
     public final ItemStack item;
-    public int index = -1;
-    public long count = 0L;
-    public double distance = -1.0;
-    public BlockPos nearest = null;
-    public String nearestType = null;
+    private int index = -1;
+    private long count = 0L;
+    private double distance = -1.0;
+    private BlockPos nearest = null;
+    private String nearestType = null;
+    private boolean isPinned = false;
 
     private boolean generatedCountText = false;
     private Text countText = null;
@@ -112,19 +115,60 @@ public class ItemData {
         return nbt;
     }
 
-    public static @Nullable ItemData fromNbt(NbtCompound nbt) {
+    public static @Nullable ItemData fromNbt(StorageBrowseScreen screen, NbtCompound nbt) {
         ItemStack stack = ItemStack.fromNbt(nbt);
         if (stack == ItemStack.EMPTY) return null;
         int count = stack.getCount();
-        if (count == 1) return new ItemData(stack);
+        if (count == 1) return new ItemData(screen, stack);
         stack.setCount(1);
-        ItemData item = new ItemData(stack);
+        ItemData item = new ItemData(screen, stack);
         item.setCount(count);
         return item;
     }
 
-    public ItemData(ItemStack item) {
+    public ItemData(StorageBrowseScreen screen, ItemStack item) {
+        this.screen = screen;
         this.item = item;
+    }
+
+    public int getIndex() {
+        return index;
+    }
+
+    public void setIndex(int index) {
+        this.index = index;
+        this.isPinned = screen.profile.itemSets.isFavorite(index);
+    }
+
+    public double getDistance() {
+        return distance;
+    }
+
+    public BlockPos getNearestPos() {
+        return nearest;
+    }
+
+    public String getNearestContainerType() {
+        return nearestType;
+    }
+
+    public void setPinned(boolean pinned) {
+        if (index <= 0 || isPinned == pinned) return;
+        isPinned = pinned;
+        if (pinned) {
+            screen.profile.itemSets.addFavorite(index);
+        } else {
+            screen.profile.itemSets.removeFavorite(index);
+        }
+        screen.markDirty();
+    }
+
+    public boolean isPinned() {
+        return isPinned;
+    }
+
+    public long getCount() {
+        return count;
     }
 
     public void setCount(long count) {
@@ -157,6 +201,7 @@ public class ItemData {
         addCount(other.count);
         foundAt(other.nearest, other.nearestType, other.distance);
         if (index == -1) index = other.index;
+        if (other.isPinned) setPinned(true);
         return this;
     }
 
@@ -196,6 +241,11 @@ public class ItemData {
             extraTooltip = (tooltips.isEmpty() ? null : tooltips);
             return extraTooltip != null ? new ArrayList<>(extraTooltip) : new ArrayList<>();
         }
+    }
+
+    public int compareFavorite(@NotNull ItemData other) {
+        if (isPinned == other.isPinned) return 0;
+        return isPinned ? -1 : 1;
     }
 
     public int compareCount(@NotNull ItemData other) {

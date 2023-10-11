@@ -34,6 +34,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
 
+import static io.github.amelonrind.storagebrowser.StorageBrowser.LOGGER;
+
 import static io.github.amelonrind.storagebrowser.api.StorageBrowserAPI.Browser.filterer;
 import static io.github.amelonrind.storagebrowser.api.StorageBrowserAPI.Browser.onClickItem;
 import static io.github.amelonrind.storagebrowser.api.StorageBrowserAPI.Browser.tooltipFunction;
@@ -50,6 +52,7 @@ public class StorageBrowseScreen extends Screen {
     public static List<Text> extraTooltip = null;
 
     private @Nullable Screen parent;
+    public final DataManager profile;
     private SearchBar searchBar = null;
     public String loadingLabel = "";
     public double loadProgress = 0.0;
@@ -77,10 +80,10 @@ public class StorageBrowseScreen extends Screen {
     private int flooredScrolled = 0;
 
     public static void open(Screen parent, @NotNull DataManager profile) {
-        StorageBrowser.LOGGER.info(String.format("Opening browser %s %s", profile.profileName, profile.getCurrentPathShort()));
+        LOGGER.info(String.format("Opening browser %s %s", profile.profileName, profile.getCurrentPathShort()));
         DataManager.globalSettings.reload();
         profile.settings.reload();
-        StorageBrowseScreen screen = new StorageBrowseScreen();
+        StorageBrowseScreen screen = new StorageBrowseScreen(profile);
         screen.setParent(parent);
 
 //        boolean isCurrentWorld = mc.world != null && profile.profileName.equals(DataManager.getProfileIndex(DataManager.getCurrentWorldId()));
@@ -89,9 +92,8 @@ public class StorageBrowseScreen extends Screen {
 
         ItemsLoader loader = new ItemsLoader(
                 screen,
-                profile.getNbtItemList(),
+                profile,
                 DataManager.globalSettings.get("unpackShulker", false),
-                profile.getCurrentPath(),
                 profile.getChunksInRenderDistance(),
                 mc.player == null ? Vec3d.ZERO : mc.player.getPos()
         );
@@ -101,8 +103,9 @@ public class StorageBrowseScreen extends Screen {
         mc.setScreen(screen);
     }
 
-    public StorageBrowseScreen() {
+    public StorageBrowseScreen(DataManager profile) {
         super(TITLE);
+        this.profile = profile;
     }
 
     @Override
@@ -310,31 +313,38 @@ public class StorageBrowseScreen extends Screen {
                         onClickItem = null;
                     }
                 }
-                if (onClickItem == null && mc.player != null) {
-                    mc.player.sendMessage(
-                            Text.translatable(
-                                    StorageBrowser.translateKey("browser.on-click"),
-                                    item.item.getName().copy().setStyle(
-                                            Style.EMPTY.withHoverEvent(new HoverEvent(
-                                                    HoverEvent.Action.SHOW_ITEM,
-                                                    new HoverEvent.ItemStackContent(item.item)
-                                            ))
-                                    ),
-                                    String.format("%d, %d, %d", item.nearest.getX(), item.nearest.getY(), item.nearest.getZ()),
-                                    item.nearestType
-                            ).setStyle(
-                                    Style.EMPTY.withHoverEvent(new HoverEvent(
-                                            HoverEvent.Action.SHOW_TEXT,
-                                            StorageBrowser.translate("browser.on-click.tooltip")
-                                    ))
-                            )
-                    );
+                if (onClickItem == null) {
+                    defaultOnClick(item, button);
                 }
                 return true;
             }
             clickingItem[button] = -1;
         }
         return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    private void defaultOnClick(ItemData item, int button) {
+        if (button == 2) item.setPinned(!item.isPinned());
+        else if (button == 0) {
+            if (mc.player != null) mc.player.sendMessage(
+                    Text.translatable(
+                            StorageBrowser.translateKey("browser.on-click"),
+                            item.item.getName().copy().setStyle(
+                                    Style.EMPTY.withHoverEvent(new HoverEvent(
+                                            HoverEvent.Action.SHOW_ITEM,
+                                            new HoverEvent.ItemStackContent(item.item)
+                                    ))
+                            ),
+                            String.format("%d, %d, %d", item.getNearestPos().getX(), item.getNearestPos().getY(), item.getNearestPos().getZ()),
+                            item.getNearestContainerType()
+                    ).setStyle(
+                            Style.EMPTY.withHoverEvent(new HoverEvent(
+                                    HoverEvent.Action.SHOW_TEXT,
+                                    StorageBrowser.translate("browser.on-click.tooltip")
+                            ))
+                    )
+            );
+        }
     }
 
     @Override
@@ -425,14 +435,17 @@ public class StorageBrowseScreen extends Screen {
             context.drawItem(item.item, x, y);
             context.drawItemInSlot(textRenderer, item.item, x, y, "");
             Text countText = item.getCountText(textScale);
-            if (countText != null) {
-                int tx = x + 17 - (int) Math.ceil(textRenderer.getWidth(countText) * textScale);
-                int ty = y + textDY;
+            if (countText != null || item.isPinned()) {
                 context.getMatrices().push();
-                context.getMatrices().translate(tx, ty, 200.0f);
-                context.getMatrices().scale(textScale, textScale, 1.0f);
-                context.getMatrices().translate(-tx, -ty, 0.0f);
-                context.drawTextWithShadow(textRenderer, countText, tx, ty, 0xffffff);
+                context.getMatrices().translate(0, 0, 200.0f);
+                if (item.isPinned()) context.drawTextWithShadow(textRenderer, "\uD83D\uDCCC", x + 11, y - 2, 0xffff00);
+                if (countText != null) {
+                    int tx = x + 17 - (int) Math.ceil(textRenderer.getWidth(countText) * textScale);
+                    int ty = y + textDY;
+                    context.getMatrices().translate(tx, ty, 0);
+                    context.getMatrices().scale(textScale, textScale, 1.0f);
+                    context.drawTextWithShadow(textRenderer, countText, 0, 0, 0xffffff);
+                }
                 context.getMatrices().pop();
             }
         }
@@ -485,6 +498,7 @@ public class StorageBrowseScreen extends Screen {
 
     static class ItemsLoader {
         private final StorageBrowseScreen screen;
+        private final DataManager profile;
         private final NbtList nbtItems;
         /** index: index of nbtItems, value: index of screen.loadedItems | -1: null | -2: unpacked shulker */
         private final int[] fastIndex;
@@ -500,15 +514,16 @@ public class StorageBrowseScreen extends Screen {
 
         private boolean loaded = false;
 
-        public ItemsLoader(StorageBrowseScreen screen, @NotNull NbtList nbtItems, boolean unpackShulker, Path chestsPath, List<ChunkPos> chunks, Vec3d playerPos) {
+        public ItemsLoader(StorageBrowseScreen screen, DataManager profile, boolean unpackShulker, List<ChunkPos> chunks, Vec3d playerPos) {
             this.screen = screen;
-            this.nbtItems = nbtItems;
+            this.profile = profile;
+            this.nbtItems = profile.getNbtItemList();
             this.unpackShulker = unpackShulker;
-            this.path = chestsPath;
+            this.path = profile.getCurrentPath();
             this.chunks = chunks;
             this.pos = playerPos;
 
-            fastIndex = new int[nbtItems.size()];
+            fastIndex = new int[this.nbtItems.size()];
             Arrays.fill(fastIndex, -1);
             if (unpackShulker) {
                 shulkerIndex = new HashMap<>();
@@ -576,7 +591,6 @@ public class StorageBrowseScreen extends Screen {
 
         private void addItem(int index, long count, double distance, BlockPos pos, String type) {
             if (index <= 0) return;
-            index--;
             int fi = fastIndex[index];
             if (fi != -1) {
                 if (fi >= 0) {
@@ -595,20 +609,20 @@ public class StorageBrowseScreen extends Screen {
             } else {
                 NbtElement nbt = nbtItems.get(index);
                 if (nbt == null || nbt.getType() != NbtElement.COMPOUND_TYPE) return;
-                ItemData item = ItemData.fromNbt((NbtCompound) nbt);
+                ItemData item = ItemData.fromNbt(screen, (NbtCompound) nbt);
                 if (item == null) return;
                 item.setCount(count);
                 item.foundAt(pos, type, distance);
-                item.index = index;
+                item.setIndex(index);
                 if (!unpack(item)) {
                     int i = nonIndexed == null ? -1 : nonIndexed.indexOf(item);
                     if (i != -1) {
                         ItemData it = nonIndexed.get(i);
                         it.merge(item);
                         nonIndexed.remove(i);
-                        fastIndex[it.index] = screen.loadedItems.indexOf(it);
+                        fastIndex[it.getIndex()] = screen.loadedItems.indexOf(it);
                     } else {
-                        fastIndex[item.index] = screen.loadedItems.size();
+                        fastIndex[item.getIndex()] = screen.loadedItems.size();
                         synchronized (screen.loadedItems) {
                             screen.loadedItems.add(item);
                         }
@@ -653,7 +667,7 @@ public class StorageBrowseScreen extends Screen {
             NbtCompound[] keys = items.keySet().toArray(new NbtCompound[0]);
             for (int i = 0; i < size; i++) {
                 countArr[i] = items.get(keys[i]);
-                ItemData data = ItemData.fromNbt(keys[i]);
+                ItemData data = ItemData.fromNbt(screen, keys[i]);
                 if (data == null) return false;
                 int index;
                 if ((index = unpackedItems.indexOf(data)) != -1) {
@@ -670,12 +684,12 @@ public class StorageBrowseScreen extends Screen {
                 }
                 itemArr[i] = data;
             }
-            fastIndex[item.index] = -2;
-            shulkerIndex.put(item.index, new Pair<>(itemArr, countArr));
+            fastIndex[item.getIndex()] = -2;
+            shulkerIndex.put(item.getIndex(), new Pair<>(itemArr, countArr));
 
             for (int i = 0; i < size; i++) {
-                itemArr[i].addCount(countArr[i] * item.count);
-                itemArr[i].foundAt(item.nearest, item.nearestType, item.distance);
+                itemArr[i].addCount(countArr[i] * item.getCount());
+                itemArr[i].foundAt(item.getNearestPos(), item.getNearestContainerType(), item.getDistance());
             }
 
             return true;

@@ -6,6 +6,7 @@ import io.github.amelonrind.storagebrowser.StorageBrowser;
 import io.github.amelonrind.storagebrowser.api.StorageBrowserAPI;
 import io.github.amelonrind.storagebrowser.data.gson.Chest;
 import io.github.amelonrind.storagebrowser.data.gson.ChestChunk;
+import io.github.amelonrind.storagebrowser.data.gson.ItemSets;
 import io.github.amelonrind.storagebrowser.data.key.ChestPos;
 import io.github.amelonrind.storagebrowser.data.key.ChunkPos;
 import net.fabricmc.loader.api.FabricLoader;
@@ -27,6 +28,8 @@ import java.io.*;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Stream;
+
+import static io.github.amelonrind.storagebrowser.StorageBrowser.LOGGER;
 
 public class DataManager {
     public static final String FILE_NAME_REGEX = "^[^\\\\/:*?\"<>|\\r\\n]+(?<!\\.)(?<!^/s+)$";
@@ -119,7 +122,7 @@ public class DataManager {
         try {
             Files.copy(file, Path.of(file.getPath()).getParent().resolve(bakName + max).toFile());
         } catch (IOException e) {
-            StorageBrowser.LOGGER.error("Error while backing up file (" + file.getPath() + ")", e);
+            LOGGER.error("Error while backing up file (" + file.getPath() + ")", e);
         }
     }
 
@@ -133,12 +136,12 @@ public class DataManager {
             try (FileWriter writer = new FileWriter(file)) {
                 (ugly ? uglyGson : gson).toJson(json, writer);
             } catch (IOException | JsonIOException e) {
-                StorageBrowser.LOGGER.error("Error while writing " + name + " json file (" + file.getPath() + ")", e);
+                LOGGER.error("Error while writing " + name + " json file (" + file.getPath() + ")", e);
             }
         });
     }
 
-    private static void addSaveTask(Object key, Runnable task) {
+    public static void addSaveTask(Object key, Runnable task) {
         synchronized (saveTasks) {
             saveTasks.put(key, task);
         }
@@ -169,12 +172,15 @@ public class DataManager {
     private final File itemsFile;
     private String serverId = "default";
     private String dimension = null;
+    /**
+     * index 0 is always air
+     */
     private final NbtList items;
     private final Map<Integer, ItemStack> itemStackCache = new TreeMap<>();
     private int newItemIndex = -1;
     private Path currentPath;
-    private static final Map<ChunkPos, ChestChunk> chestChunks = new HashMap<>();
-    private static ChunkItemRecord chunkItemRecord;
+    private final Map<ChunkPos, ChestChunk> chestChunks = new HashMap<>();
+    public final ItemSets itemSets;
 
     public DataManager(String profileName) {
         this.profileName = profileName = verifyPathName(profileName);
@@ -189,32 +195,36 @@ public class DataManager {
             if (nbt == null) throw new NullPointerException("loaded value is null");
             data = nbt.getList("items", NbtElement.COMPOUND_TYPE);
         } catch (Throwable e) {
-            StorageBrowser.LOGGER.warn("Failed to load items for ${profileName}: ", e);
+            LOGGER.warn("Failed to load items for " + profileName, e);
             backup(itemsFile);
             itemsFile.delete();
         }
-        items = data == null ? new NbtList() : data;
-
-        chunkItemRecord = ChunkItemRecord.load(profileRoot);
-
-        List<Integer> existItems = chunkItemRecord.getAll().stream().sorted().toList();
         NbtCompound empty = new NbtCompound();
+        items = data == null ? new NbtList() : data;
+        if (items.isEmpty()) items.add(empty);
+
+        itemSets = ItemSets.load(profileRoot);
+
+        List<Integer> existItems = itemSets.getAllItems().stream().sorted().toList();
         boolean shouldSaveItems = false;
         int size = items.size();
         int existSize = existItems.size();
         if (existSize == 0) {
-            items.clear();
-            shouldSaveItems = true;
+            if (size > 1) {
+                items.clear();
+                items.add(empty);
+                shouldSaveItems = true;
+            }
         } else {
             int ii = 0;
-            for (int i = 0; i < size; i++) {
+            for (int i = 1; i < size; i++) {
                 while (existItems.get(ii) < i && ii + 1 < existSize) ii++;
                 if (i != existItems.get(ii)) {
                     items.set(i, empty);
                     shouldSaveItems = true;
                 }
             }
-            for (int i = size - 1; i >= 0 && empty.equals(items.get(i)); i--) {
+            for (int i = size - 1; i > 0 && empty.equals(items.get(i)); i--) {
                 items.remove(i);
                 shouldSaveItems = true;
             }
@@ -222,7 +232,7 @@ public class DataManager {
         if (shouldSaveItems) saveItems();
 
         updateNewItemIndex();
-        StorageBrowser.LOGGER.info(String.format("new DataManager(\"%s\"), Loaded items size: %d", profileName, items.size()));
+        LOGGER.info(String.format("new DataManager(\"%s\"), Loaded items size: %d", profileName, items.size() - 1));
         updateDimension();
     }
 
@@ -233,7 +243,7 @@ public class DataManager {
             try {
                 NbtIo.writeCompressed(nbt, itemsFile);
             } catch (IOException e) {
-                StorageBrowser.LOGGER.error("Error while writing items.nbt file (" + itemsFile.getPath() + ")", e);
+                LOGGER.error("Error while writing items.nbt file (" + itemsFile.getPath() + ")", e);
             }
         });
     }
@@ -243,13 +253,13 @@ public class DataManager {
             newItemIndex++;
             return;
         }
-        int nullIndex = items.indexOf(new NbtCompound());
-        newItemIndex = nullIndex != -1 ? nullIndex : items.size();
+        int nullIndex = items.lastIndexOf(new NbtCompound());
+        newItemIndex = nullIndex > 0 ? nullIndex : items.size();
     }
 
     public void updateDimension() {
         String idr = StorageBrowserAPI.getServer(profileName);
-        String dmr = escapeIdentifier(mc.world == null ? "null" : mc.world.getRegistryKey().getValue().toString());
+        String dmr = mc.world == null ? "null" : escapeIdentifier(mc.world.getRegistryKey().getValue().toString());
         if (idr == null) idr = serverId;
         if (!Objects.equals(serverId, idr) || !Objects.equals(dimension, dmr) || chestChunks.size() > 128) {
             chestChunks.clear();
@@ -257,7 +267,7 @@ public class DataManager {
         currentPath = chestsRoot.resolve(serverId = idr).resolve(dimension = dmr);
         File root = currentPath.toFile();
         if (!root.isDirectory() && !root.mkdirs()) {
-            StorageBrowser.LOGGER.warn(String.format("failed to create dir: data/%s/chests/%s/%s", profileName, serverId, dimension));
+            LOGGER.warn(String.format("failed to create dir: data/%s/chests/%s/%s", profileName, serverId, dimension));
         }
     }
 
@@ -278,7 +288,7 @@ public class DataManager {
         NbtCompound nbt = ItemData.getNbtFromItem(item);
         if (globalSettings.get("cleanUUID", true)) ItemData.cleanUUID(nbt);
         int index = items.indexOf(nbt);
-        if (index != -1) return index + 1;
+        if (index != -1) return index;
         index = newItemIndex;
         if (index >= items.size()) {
             index = items.size();
@@ -286,7 +296,7 @@ public class DataManager {
         } else items.set(index, nbt);
         updateNewItemIndex();
         saveItems();
-        return index + 1;
+        return index;
     }
 
     public ItemStack getItem(int index) {
@@ -296,8 +306,8 @@ public class DataManager {
     }
 
     public NbtCompound getNbtItem(int index) {
-        if (index <= 0 || index + 1 >= items.size()) return null;
-        NbtCompound nbt = (NbtCompound) items.get(index - 1);
+        if (index <= 0 || index >= items.size()) return null;
+        NbtCompound nbt = (NbtCompound) items.get(index);
         return (nbt == null || nbt.isEmpty()) ? null : nbt;
     }
 
@@ -318,8 +328,8 @@ public class DataManager {
     public void saveChestChunk(ChunkPos pos) {
         ChestChunk chunk = chestChunks.get(pos);
         if (chunk != null) {
-            chunkItemRecord.setChunk(serverId, dimension, chunk);
-            chunkItemRecord.write();
+            itemSets.setChunk(serverId, dimension, chunk);
+            itemSets.write();
             chunk.write();
         }
     }
@@ -424,7 +434,7 @@ public class DataManager {
                 json = e.getAsJsonObject();
                 return;
             } catch (IOException | JsonIOException | JsonSyntaxException e) {
-                StorageBrowser.LOGGER.error("Error while reading settings json file (" + file.getPath() + ")", e);
+                LOGGER.error("Error while reading settings json file (" + file.getPath() + ")", e);
                 backup(file);
             }
             json = new JsonObject();

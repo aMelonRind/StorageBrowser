@@ -1,7 +1,6 @@
 package io.github.amelonrind.storagebrowser.data;
 
 import com.google.gson.*;
-import io.github.amelonrind.storagebrowser.StorageBrowser;
 import io.github.amelonrind.storagebrowser.data.gson.ChestChunk;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -12,6 +11,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
+
+import static io.github.amelonrind.storagebrowser.StorageBrowser.LOGGER;
 
 public class ChunkItemRecord {
     private final File file;
@@ -37,7 +38,7 @@ public class ChunkItemRecord {
             if (shouldBackup) DataManager.backup(file);
             return new ChunkItemRecord(file, o);
         } catch (IOException e) {
-            StorageBrowser.LOGGER.warn("Failed to load chunk-item record: ", e);
+            LOGGER.warn("Failed to load chunk-item record", e);
             shouldBackup = true;
         }
         if (shouldBackup) DataManager.backup(file);
