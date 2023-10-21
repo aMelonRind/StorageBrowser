@@ -283,14 +283,12 @@ public class ItemData implements Comparable<ItemData> {
 
     private void initSearchTokens() {
         String name = item.getName().getString();
-        Identifier fullId = Registries.ITEM.getId(item.getItem());
-        String fid = fullId.toString();
-        String tooltip = item.getTooltip(null, TooltipContext.ADVANCED).stream()
+        String tooltip = item.getTooltip(null, TooltipContext.BASIC).stream()
                 .skip(1)
                 .map(Text::getString)
-                .filter(s -> !fid.equals(s))
                 .reduce((a, b) -> a + " " + b)
                 .orElse("");
+        Identifier fullId = Registries.ITEM.getId(item.getItem());
         String modid = fullId.getNamespace();
         String id = fullId.getPath();
         String tags = item.getRegistryEntry().streamTags()
