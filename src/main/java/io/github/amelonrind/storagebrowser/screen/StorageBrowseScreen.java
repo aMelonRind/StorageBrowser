@@ -443,7 +443,7 @@ public class StorageBrowseScreen extends Screen {
             scrollBarSize = Math.max((int) Math.floor((float) countY / totalRows * cy18), 2);
             int y = startY + signY * (int) Math.floor((cy18 - scrollBarSize) * (scrolled / (totalRows - countY)));
             if (signY == -1) y += 19 - scrollBarSize;
-            context.drawVerticalLine(scrollBarX, y, y + scrollBarSize, 0xffaaaaaa);
+            context.drawVerticalLine(scrollBarX, y, y + scrollBarSize, isDraggingScrollBar ? 0xffffffff : 0xffaaaaaa);
         }
         searchBar.render(context, mouseX, mouseY, tickDelta);
 
