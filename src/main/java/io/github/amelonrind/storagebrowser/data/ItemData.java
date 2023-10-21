@@ -158,7 +158,8 @@ public class ItemData implements Comparable<ItemData> {
     }
 
     public void setPinned(boolean pinned) {
-        if (index <= 0 || isPinned == pinned) return;
+        if (isPinned == pinned) return;
+        if (index == -1) index = screen.profile.getItemIndex(item);
         isPinned = pinned;
         if (pinned) {
             screen.profile.itemSets.addFavorite(index);
