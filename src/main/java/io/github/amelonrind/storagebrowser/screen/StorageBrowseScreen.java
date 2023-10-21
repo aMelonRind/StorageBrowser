@@ -7,6 +7,7 @@ import io.github.amelonrind.storagebrowser.api.Size;
 import io.github.amelonrind.storagebrowser.api.StorageBrowserAPI;
 import io.github.amelonrind.storagebrowser.data.DataManager;
 import io.github.amelonrind.storagebrowser.data.ItemData;
+import io.github.amelonrind.storagebrowser.data.SearchSession;
 import io.github.amelonrind.storagebrowser.data.key.ChunkPos;
 import io.github.amelonrind.storagebrowser.screen.element.SearchBar;
 import io.github.amelonrind.storagebrowser.util.Texts;
@@ -54,8 +55,11 @@ public class StorageBrowseScreen extends Screen {
     private @Nullable Screen parent;
     public final DataManager profile;
     private SearchBar searchBar = null;
-    public String loadingLabel = "";
-    public double loadProgress = 0.0;
+    public final SearchSession searchSession = new SearchSession();
+    private boolean searching = false;
+    private int searchIndex = 0;
+    private String loadingLabel = "";
+    private double loadProgress = 0.0;
     public final ArrayList<ItemData> loadedItems = new ArrayList<>();
     private final ArrayList<ItemData> displayedItems = new ArrayList<>();
     public boolean sortReversed = false;
@@ -132,8 +136,12 @@ public class StorageBrowseScreen extends Screen {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
-            setParent(null);
-            close();
+            if (searchBar.isFocused() && !searchBar.getText().isEmpty()) {
+                searchBar.setText("");
+            } else {
+                setParent(null);
+                close();
+            }
             return true;
         }
         if (keyCode == GLFW.GLFW_KEY_TAB) {
@@ -168,22 +176,44 @@ public class StorageBrowseScreen extends Screen {
         return destroyed;
     }
 
-    public void filterAndSort() {
-        if (!dirty && !StorageBrowserAPI.Browser.wasMutatorChanged()) return;
-        if (filterer != null) {
-            displayedItems.clear();
-            try {
-                for (ItemData item : loadedItems) {
-                    if (filterer.test(item)) displayedItems.add(item);
+    public void mutate() {
+        if (SearchBar.changed) {
+            SearchBar.changed = false;
+            searchSession.setQuery(SearchBar.searchText);
+            searching = !searchSession.isQueryEmpty();
+            searchIndex = 0;
+            searchBar.searchProgress = 0.0;
+            dirty = true;
+        }
+        if (dirty) {
+//            searchSession.increaseSyncId();
+            searchIndex = 0;
+            dirty = false;
+        } else if (!searching && !StorageBrowserAPI.Browser.wasMutatorChanged()) return;
+        if (searching) {
+            int budget = 100000;
+            synchronized (loadedItems) {
+                while (budget > 0 && searchIndex < loadedItems.size()) {
+                    budget -= loadedItems.get(searchIndex++).matchQuery();
                 }
+            }
+            if (searchIndex < loadedItems.size()) {
+                searchBar.searchProgress = (double) searchIndex / loadedItems.size();
+            } else {
+                searching = false;
+                searchBar.searchProgress = 1.1;
+            }
+        }
+        displayedItems.clear();
+        displayedItems.addAll(loadedItems);
+        if (!searchSession.isQueryEmpty()) displayedItems.removeIf(ItemData::doesntMatchQuery);
+        if (filterer != null) {
+            try {
+                displayedItems.removeIf(filterer.negate());
             } catch (Throwable e) {
                 StorageBrowserAPI.onCallbackError("filterer", e);
                 filterer = null;
             }
-        }
-        if (filterer == null) {
-            displayedItems.clear();
-            displayedItems.addAll(loadedItems);
         }
         Comparator<ItemData> sortMethod = StorageBrowserAPI.Browser.getSortComparator();
         if (sortMethod != null) {
@@ -205,7 +235,6 @@ public class StorageBrowseScreen extends Screen {
         isDraggingScroll = false;
         isDraggingScrollBar = false;
         Arrays.fill(clickingItem, -1);
-        dirty = false;
     }
 
     private int getHoveredIndex(double mouseX, double mouseY) {
@@ -368,7 +397,7 @@ public class StorageBrowseScreen extends Screen {
         }
         countX = 0;
 
-        filterAndSort();
+        mutate();
         List<ItemData> items = List.copyOf(displayedItems);
 
         Size screenSize = new Size(width, height);

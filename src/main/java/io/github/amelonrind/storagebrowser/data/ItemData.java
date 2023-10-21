@@ -1,18 +1,20 @@
 package io.github.amelonrind.storagebrowser.data;
 
 import io.github.amelonrind.storagebrowser.screen.StorageBrowseScreen;
+import net.minecraft.client.item.TooltipContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @SuppressWarnings("unused")
 public class ItemData implements Comparable<ItemData> {
@@ -47,11 +49,9 @@ public class ItemData implements Comparable<ItemData> {
     private boolean generatedTooltip = false;
     private List<Text> extraTooltip = null;
 
-    private String search_tooltip;
-    private String search_tag;
-    private String search_identifier;
-    private String search_modId;
+    private final Map<SearchSession.Type, SearchSession.Token> searchTokens = new HashMap<>(6, 1.0f);
 
+    @ApiStatus.Internal
     public static @NotNull String localeNumber(long num) {
         if (-1000L < num && num < 1000L) return Long.toString(num);
         StringBuilder str = new StringBuilder(Long.toString(num));
@@ -62,6 +62,7 @@ public class ItemData implements Comparable<ItemData> {
         return str.toString();
     }
 
+    @ApiStatus.Internal
     public static void cleanUUID(@NotNull NbtCompound nbt) {
         for (String key : Set.copyOf(nbt.getKeys())) {
             if (key.length() == 4) {
@@ -110,12 +111,14 @@ public class ItemData implements Comparable<ItemData> {
         }
     }
 
+    @ApiStatus.Internal
     public static @NotNull NbtCompound getNbtFromItem(@NotNull ItemStack item) {
         NbtCompound nbt = item.writeNbt(new NbtCompound());
         nbt.putByte("Count", (byte) 1);
         return nbt;
     }
 
+    @ApiStatus.Internal
     public static @Nullable ItemData fromNbt(StorageBrowseScreen screen, NbtCompound nbt) {
         ItemStack stack = ItemStack.fromNbt(nbt);
         if (stack == ItemStack.EMPTY) return null;
@@ -136,6 +139,7 @@ public class ItemData implements Comparable<ItemData> {
         return index;
     }
 
+    @ApiStatus.Internal
     public void setIndex(int index) {
         this.index = index;
         this.isPinned = screen.profile.itemSets.isFavorite(index);
@@ -172,6 +176,7 @@ public class ItemData implements Comparable<ItemData> {
         return count;
     }
 
+    @ApiStatus.Internal
     public void setCount(long count) {
         synchronized (infoSync) {
             generatedCountText = false;
@@ -180,6 +185,7 @@ public class ItemData implements Comparable<ItemData> {
         }
     }
 
+    @ApiStatus.Internal
     public void addCount(long count) {
         synchronized (infoSync) {
             generatedCountText = false;
@@ -189,6 +195,7 @@ public class ItemData implements Comparable<ItemData> {
         }
     }
 
+    @ApiStatus.Internal
     public void foundAt(BlockPos pos, String type, double distance) {
         synchronized (infoSync) {
             if (this.distance != -1.0 && distance >= this.distance) return;
@@ -198,6 +205,7 @@ public class ItemData implements Comparable<ItemData> {
         }
     }
 
+    @ApiStatus.Internal
     public ItemData merge(@NotNull ItemData other) {
         addCount(other.count);
         foundAt(other.nearest, other.nearestType, other.distance);
@@ -264,6 +272,47 @@ public class ItemData implements Comparable<ItemData> {
         return (distance - other.distance < 0.0) ? -1 : 1;
     }
 
+    public int compareSearch(@NotNull ItemData other) {
+        for (SearchSession.Type t : SearchSession.Type.priority) {
+            int res = SearchSession.Token.compare(searchTokens.get(t), other.searchTokens.get(t));
+            if (res != 0) return res;
+        }
+        return 0;
+    }
+
+    private void initSearchTokens() {
+        String name = item.getName().getString();
+        Identifier fullId = Registries.ITEM.getId(item.getItem());
+        String fid = fullId.toString();
+        String tooltip = item.getTooltip(null, TooltipContext.ADVANCED).stream()
+                .skip(1)
+                .map(Text::getString)
+                .filter(s -> !fid.equals(s))
+                .reduce((a, b) -> a + " " + b)
+                .orElse("");
+        String modid = fullId.getNamespace();
+        String id = fullId.getPath();
+        String tags = item.getRegistryEntry().streamTags()
+                .map(t -> t.id().toString())
+                .reduce((a, b) -> a + " " + b)
+                .orElse("");
+        screen.searchSession.setupTokens(searchTokens, name, tooltip, modid, id, tags);
+    }
+
+    public int matchQuery() {
+        if (searchTokens.isEmpty()) initSearchTokens();
+        return searchTokens.values().stream().mapToInt(SearchSession.Token::match).sum();
+    }
+
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    public boolean matchesQuery() {
+        return !searchTokens.isEmpty() && searchTokens.values().stream().allMatch(SearchSession.Token::matches);
+    }
+
+    public boolean doesntMatchQuery() {
+        return !matchesQuery();
+    }
+
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof ItemData oi)) return false;
@@ -273,12 +322,11 @@ public class ItemData implements Comparable<ItemData> {
 
     @Override
     public int compareTo(@NotNull ItemData o) {
-        int res = comparePinned(o);
-        if (res != 0) return res;
-        res = compareCount(o);
-        if (res != 0) return -res;
-        res = compareName(o);
-        if (res != 0) return res;
+        int res;
+        if ((res = comparePinned(o)) != 0) return res;
+        if (!screen.searchSession.isQueryEmpty() && (res = compareSearch(o)) != 0) return res;
+        if ((res = compareCount(o)) != 0) return -res;
+        if ((res = compareName(o)) != 0) return res;
         return compareDistance(o);
     }
 

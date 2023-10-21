@@ -25,7 +25,7 @@
   "storage-browser.browser.search-bar.tooltip.tag": " $Tag",
   "storage-browser.browser.search-bar.tooltip.identifier": " *Identifier",
   "storage-browser.browser.search-bar.tooltip.mod": " @Mod",
-  "storage-browser.browser.search-bar.placeholder": "Search.. not implemented",
+  "storage-browser.browser.search-bar.placeholder": "Search..",
 
   "storage-browser.browser.title": "Storage Browser",
   "storage-browser.browser.no-item": "No item",

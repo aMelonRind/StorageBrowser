@@ -22,10 +22,10 @@ public class SearchBar extends TextFieldWidget {
             Texts.withColor(StorageBrowser.translate("browser.search-bar.tooltip.mod"), 0xff7fff)
     );
     private static final Text placeholder = StorageBrowser.translate("browser.search-bar.placeholder");
+    public static boolean changed = false;
     public static String searchText = "";
 
     public TextRenderer textRenderer;
-    public boolean changed = false;
     public int barColor = 0xFFEEEEEE;
     public double searchProgress = 0.0;
     public double loadProgress = 0.0;
@@ -60,7 +60,6 @@ public class SearchBar extends TextFieldWidget {
 
     @Override
     public void tick() {
-        searchProgress += 0.1;
         ++loadDoneTicks;
         ++searchDoneTicks;
         ++cursorTicks;
